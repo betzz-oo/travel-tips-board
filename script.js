@@ -149,23 +149,23 @@ function renderTips() {
     const filteredTips = allTips.filter(tip => {
         // 1. Category Filter (Exact match or 'All')
         const matchesCategory = selectedCategory === 'All' || tip.category === selectedCategory;
-        
+
         // 2. Country Filter (Dropdown match or check 'location' fallback for old data)
         const tipCountry = (tip.country || '').toLowerCase();
         const tipLocation = (tip.location || '').toLowerCase();
-        const matchesCountry = selectedCountry === 'All' || 
-                               tip.country === selectedCountry || 
-                               (!tip.country && tipLocation.includes(selectedCountry.toLowerCase()));
+        const matchesCountry = selectedCountry === 'All' ||
+            tip.country === selectedCountry ||
+            (!tip.country && tipLocation.includes(selectedCountry.toLowerCase()));
 
         // 3. City Filter (Search in 'city' OR 'location' fallback)
         const tipCity = (tip.city || '').toLowerCase();
-        const matchesCity = !cityQuery || 
-                            tipCity.includes(cityQuery) || 
-                            (!tip.city && tipLocation.includes(cityQuery));
+        const matchesCity = !cityQuery ||
+            tipCity.includes(cityQuery) ||
+            (!tip.city && tipLocation.includes(cityQuery));
 
         // 4. Spot Filter (Search in 'location' field, which represents the spot in new data)
         const matchesLocation = !locationQuery || tipLocation.includes(locationQuery);
-        
+
         return matchesCategory && matchesCountry && matchesCity && matchesLocation;
     });
 
