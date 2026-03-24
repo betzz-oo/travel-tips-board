@@ -29,6 +29,11 @@ const tipForm = document.getElementById('tipForm');
 const submitBtn = document.getElementById('submitBtn');
 const tipsContainer = document.getElementById('tipsContainer');
 const filterCategory = document.getElementById('filterCategory');
+const filterCity = document.getElementById('filterCity');
+const filterCountry = document.getElementById('filterCountry');
+const filterLocation = document.getElementById('filterLocation');
+const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+const clearFiltersBtn = document.getElementById('clearFiltersBtn');
 
 // Store fetched tips in memory for easy filtering
 let allTips = [];
@@ -41,6 +46,8 @@ async function saveTip(event) {
     console.log("SUBMIT CLICKED - Starting saveTip function");
 
     // Get values from form
+    const cityInput = document.getElementById('city').value.trim();
+    const countryInput = document.getElementById('country').value;
     const locationInput = document.getElementById('location').value.trim();
     const categoryInput = document.getElementById('category').value;
     const contentInput = document.getElementById('tipContent').value.trim();
@@ -49,6 +56,8 @@ async function saveTip(event) {
     const proofInput = document.getElementById('proofOfVisit').value.trim();
 
     console.log("Form Data Captured:", {
+        city: cityInput,
+        country: countryInput,
         location: locationInput,
         category: categoryInput,
         content: contentInput,
@@ -59,6 +68,8 @@ async function saveTip(event) {
 
     // Prepare data object
     const newTip = {
+        city: cityInput,
+        country: countryInput,
         location: locationInput,
         category: categoryInput,
         content: contentInput,
@@ -130,15 +141,40 @@ function renderTips() {
     tipsContainer.innerHTML = ''; // Clear container
 
     const selectedCategory = filterCategory.value;
+    const selectedCountry = filterCountry.value;
+    const cityQuery = filterCity.value.toLowerCase().trim();
+    const locationQuery = filterLocation.value.toLowerCase().trim();
 
     // Filter tips array
     const filteredTips = allTips.filter(tip => {
-        if (selectedCategory === 'All') return true;
-        return tip.category === selectedCategory;
+        // 1. Category Filter (Exact match or 'All')
+        const matchesCategory = selectedCategory === 'All' || tip.category === selectedCategory;
+        
+        // 2. Country Filter (Dropdown match or check 'location' fallback for old data)
+        const tipCountry = (tip.country || '').toLowerCase();
+        const tipLocation = (tip.location || '').toLowerCase();
+        const matchesCountry = selectedCountry === 'All' || 
+                               tip.country === selectedCountry || 
+                               (!tip.country && tipLocation.includes(selectedCountry.toLowerCase()));
+
+        // 3. City Filter (Search in 'city' OR 'location' fallback)
+        const tipCity = (tip.city || '').toLowerCase();
+        const matchesCity = !cityQuery || 
+                            tipCity.includes(cityQuery) || 
+                            (!tip.city && tipLocation.includes(cityQuery));
+
+        // 4. Spot Filter (Search in 'location' field, which represents the spot in new data)
+        const matchesLocation = !locationQuery || tipLocation.includes(locationQuery);
+        
+        return matchesCategory && matchesCountry && matchesCity && matchesLocation;
     });
 
     if (filteredTips.length === 0) {
-        tipsContainer.innerHTML = '<div class="no-tips-msg">No tips found for this category. Be the first to add one!</div>';
+        let message = 'No tips found matching your search combination. Try removing some filters.';
+        if (selectedCategory === 'All' && selectedCountry === 'All' && !cityQuery && !locationQuery) {
+            message = 'No tips shared yet. Be the first to share one!';
+        }
+        tipsContainer.innerHTML = `<div class="no-tips-msg">${message}</div>`;
         return;
     }
 
@@ -164,10 +200,17 @@ function renderTips() {
             }
         }
 
+        // Format location gracefully (Spot, City, Country)
+        const locationParts = [];
+        if (tip.location) locationParts.push(tip.location);
+        if (tip.city) locationParts.push(tip.city);
+        if (tip.country) locationParts.push(tip.country);
+        const fullLocation = locationParts.join(', ');
+
         const cardHTML = `
         <article class="tip-card">
             <div class="tip-header">
-                <span class="tip-location">📍 ${escapeHTML(tip.location)}</span>
+                <span class="tip-location">📍 ${escapeHTML(fullLocation)}</span>
                 <span class="tip-category">${escapeHTML(tip.category)}</span>
             </div>
             <div class="tip-content">${escapeHTML(tip.content)}</div>
@@ -206,8 +249,21 @@ function escapeHTML(str) {
 // When form is submitted
 tipForm.addEventListener('submit', saveTip);
 
-// When filter dropdown changes
+// When filter inputs change
 filterCategory.addEventListener('change', renderTips);
+filterCountry.addEventListener('change', renderTips);
+filterCity.addEventListener('input', renderTips);
+filterLocation.addEventListener('input', renderTips);
+
+// Explicit Filter Buttons
+applyFiltersBtn.addEventListener('click', renderTips);
+clearFiltersBtn.addEventListener('click', () => {
+    filterCategory.value = 'All';
+    filterCountry.value = 'All';
+    filterCity.value = '';
+    filterLocation.value = '';
+    renderTips();
+});
 
 // Initial fetch when page loads
 console.log("Initializing: Page loaded, fetching tips...");
