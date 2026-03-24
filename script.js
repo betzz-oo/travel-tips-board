@@ -74,10 +74,10 @@ async function saveTip(event) {
         submitBtn.textContent = "Sharing...";
 
         console.log(`Saving to Firestore collection '${COLLECTION_NAME}'...`);
-        
+
         // Add document to collection
         const docRef = await addDoc(collection(db, COLLECTION_NAME), newTip);
-        
+
         console.log("Document successfully written with ID:", docRef.id);
         alert("Success! Your travel tip has been shared.");
 
