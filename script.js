@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-analytics.js";
 
 // --- 1. FIREBASE CONFIGURATION ---
@@ -60,23 +60,23 @@ async function saveTip(event) {
         country: countryInput,
         location: locationInput,
         category: categoryInput,
-        content: contentInput,
-        author: authorInput,
+        tip: contentInput,
+        name: authorInput,
         email: emailInput,
         proof: proofInput
     });
 
-    // Prepare data object
+    // Prepare data object with new field names
     const newTip = {
         city: cityInput,
         country: countryInput,
         location: locationInput,
         category: categoryInput,
-        content: contentInput,
-        authorName: authorInput,
-        authorEmail: emailInput,
-        proofOfVisit: proofInput,
-        timestamp: serverTimestamp() // Let Firestore handle the exact time
+        tip: contentInput,
+        name: authorInput,
+        email: emailInput,
+        proof: proofInput,
+        timestamp: serverTimestamp()
     };
 
     try {
@@ -86,18 +86,22 @@ async function saveTip(event) {
 
         console.log(`Saving to Firestore collection '${COLLECTION_NAME}'...`);
 
-        // Add document to collection
-        const docRef = await addDoc(collection(db, COLLECTION_NAME), newTip);
+        // Generate a custom ID so they appear in order in the Firebase Console
+        // Using '00_' prefix ensures they stay at the top of the alphabetic list
+        // Using an inverted timestamp ensures NEWEST items are at the TOP
+        const customId = `00_tip_${Number.MAX_SAFE_INTEGER - Date.now()}`;
 
-        console.log("Document successfully written with ID:", docRef.id);
+        // Set document with custom ID
+        await setDoc(doc(db, COLLECTION_NAME, customId), newTip);
+
+        console.log("Document successfully written with ID:", customId);
         alert("Success! Your travel tip has been shared.");
 
         // Reset form
         tipForm.reset();
 
-        // Re-fetch tips to show the new one
-        console.log("Re-fetching tips after successful save...");
-        await fetchTips();
+        // Re-fetching tips is no longer needed manually as onSnapshot handles it!
+        console.log("Tip saved! Real-time listener will update the list.");
 
     } catch (error) {
         console.error("CRITICAL ERROR adding tip to Firestore:", error);
@@ -109,30 +113,30 @@ async function saveTip(event) {
     }
 }
 
-// Function to fetch tips from Firestore
-async function fetchTips() {
+// Function to fetch and listen for tips from Firestore in real-time
+function setupRealtimeTips() {
     try {
-        console.log(`Fetching from Firestore collection '${COLLECTION_NAME}'...`);
-        // Fetch from collection, order by timestamp descending (newest first)
+        console.log(`Setting up real-time listener for Firestore collection '${COLLECTION_NAME}'...`);
+        // Query collection, order by timestamp descending (newest on top: C -> B -> A)
         const q = query(collection(db, COLLECTION_NAME), orderBy('timestamp', 'desc'));
-        const querySnapshot = await getDocs(q);
 
-        allTips = []; // Reset array
+        // onSnapshot stays active and calls the callback whenever data changes
+        onSnapshot(q, (querySnapshot) => {
+            allTips = []; // Reset array
+            querySnapshot.forEach(doc => {
+                const tipData = doc.data();
+                allTips.push({ id: doc.id, ...tipData });
+            });
 
-        querySnapshot.forEach(doc => {
-            const tipData = doc.data();
-            // Store doc.id if we needed to delete/edit later
-            allTips.push({ id: doc.id, ...tipData });
+            console.log(`Real-time update: ${allTips.length} tips synced.`);
+            renderTips(); // Re-render whenever data changes
+        }, (error) => {
+            console.error("Error in real-time listener: ", error);
+            tipsContainer.innerHTML = '<div class="no-tips-msg">Error synchronizing tips. Check console.</div>';
         });
 
-        console.log(`Successfully fetched ${allTips.length} tips from '${COLLECTION_NAME}'.`);
-
-        // Display them
-        renderTips();
-
     } catch (error) {
-        console.error("Error fetching tips: ", error);
-        tipsContainer.innerHTML = '<div class="no-tips-msg">Error loading tips. Check console.</div>';
+        console.error("Critical error setting up listener: ", error);
     }
 }
 
@@ -163,7 +167,7 @@ function renderTips() {
             tipCity.includes(cityQuery) ||
             (!tip.city && tipLocation.includes(cityQuery));
 
-        // 4. Spot Filter (Search in 'location' field, which represents the spot in new data)
+        // 4. Spot Filter (Search in 'location' field)
         const matchesLocation = !locationQuery || tipLocation.includes(locationQuery);
 
         return matchesCategory && matchesCountry && matchesCity && matchesLocation;
@@ -191,12 +195,12 @@ function renderTips() {
         }
 
         let proofHTML = '';
-        if (tip.proofOfVisit) {
+        if (tip.proof) {
             // simple check if it looks like an image URL
-            if (tip.proofOfVisit.match(/\.(jpeg|jpg|gif|png|webp|avif)(\?.*)?$/i)) {
-                proofHTML = `<img src="${escapeHTML(tip.proofOfVisit)}" alt="Proof of visit" class="tip-proof-img" loading="lazy">`;
+            if (tip.proof.match(/\.(jpeg|jpg|gif|png|webp|avif)(\?.*)?$/i)) {
+                proofHTML = `<img src="${escapeHTML(tip.proof)}" alt="Proof of visit" class="tip-proof-img" loading="lazy">`;
             } else {
-                proofHTML = `<a href="${escapeHTML(tip.proofOfVisit)}" target="_blank" rel="noopener noreferrer" class="tip-proof-link">🔗 View Proof of Visit</a>`;
+                proofHTML = `<a href="${escapeHTML(tip.proof)}" target="_blank" rel="noopener noreferrer" class="tip-proof-link">🔗 View Proof of Visit</a>`;
             }
         }
 
@@ -213,12 +217,12 @@ function renderTips() {
                 <span class="tip-location">📍 ${escapeHTML(fullLocation)}</span>
                 <span class="tip-category">${escapeHTML(tip.category)}</span>
             </div>
-            <div class="tip-content">${escapeHTML(tip.content)}</div>
+            <div class="tip-content">${escapeHTML(tip.tip)}</div>
             ${proofHTML}
             <div class="tip-footer">
                 <span class="tip-author">
-                    👤 ${escapeHTML(tip.authorName)}
-                    ${tip.authorEmail ? `<a href="mailto:${escapeHTML(tip.authorEmail)}" style="color: var(--primary-blue); text-decoration: none; margin-left: 5px;" title="Email Author">✉️</a>` : ''}
+                    👤 ${escapeHTML(tip.name)}
+                    ${tip.email ? `<a href="mailto:${escapeHTML(tip.email)}" style="color: var(--primary-blue); text-decoration: none; margin-left: 5px;" title="Email Author">✉️</a>` : ''}
                 </span>
                 <span class="tip-date">🕒 ${timeString}</span>
             </div>
@@ -265,8 +269,8 @@ clearFiltersBtn.addEventListener('click', () => {
     renderTips();
 });
 
-// Initial fetch when page loads
-console.log("Initializing: Page loaded, fetching tips...");
-fetchTips();
+// Initial set up for real-time listening
+console.log("Initializing: Page loaded, setting up real-time sync...");
+setupRealtimeTips();
 
 console.log("Ready: Event listeners attached and form identified:", !!tipForm);
