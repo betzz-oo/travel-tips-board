@@ -29,12 +29,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const tipForm = document.getElementById('tipForm');
     const submitBtn = document.getElementById('submitBtn');
     const tipsContainer = document.getElementById('tipsContainer');
+
+    // Filter elements
     const filterCategory = document.getElementById('filterCategory');
     const filterCity = document.getElementById('filterCity');
     const filterCountry = document.getElementById('filterCountry');
     const filterLocation = document.getElementById('filterLocation');
     const applyFiltersBtn = document.getElementById('applyFiltersBtn');
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+
+    // Guard: If essential container is missing, we can't do much
+    if (!tipsContainer) {
+        console.error("CRITICAL: 'tipsContainer' not found in the HTML. Real-time updates disabled.");
+        return;
+    }
 
     // Store fetched tips in memory for easy filtering
     let allTips = [];
@@ -143,12 +151,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Function to render HTML for tips based on current filter
     function renderTips() {
+        if (!tipsContainer) return;
         tipsContainer.innerHTML = ''; // Clear container
 
-        const selectedCategory = filterCategory.value;
-        const selectedCountry = filterCountry.value;
-        const cityQuery = filterCity.value.toLowerCase().trim();
-        const locationQuery = filterLocation.value.toLowerCase().trim();
+        // Safely get filter values
+        const selectedCategory = filterCategory ? filterCategory.value : 'All';
+        const selectedCountry = filterCountry ? filterCountry.value : 'All';
+        const cityQuery = filterCity ? filterCity.value.toLowerCase().trim() : '';
+        const locationQuery = filterLocation ? filterLocation.value.toLowerCase().trim() : '';
 
         // Filter tips array
         const filteredTips = allTips.filter(tip => {
@@ -259,20 +269,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // When filter inputs change
-    filterCategory.addEventListener('change', renderTips);
-    filterCountry.addEventListener('change', renderTips);
-    filterCity.addEventListener('input', renderTips);
-    filterLocation.addEventListener('input', renderTips);
+    if (filterCategory) filterCategory.addEventListener('change', renderTips);
+    if (filterCountry) filterCountry.addEventListener('change', renderTips);
+    if (filterCity) filterCity.addEventListener('input', renderTips);
+    if (filterLocation) filterLocation.addEventListener('input', renderTips);
 
     // Explicit Filter Buttons
-    applyFiltersBtn.addEventListener('click', renderTips);
-    clearFiltersBtn.addEventListener('click', () => {
-        filterCategory.value = 'All';
-        filterCountry.value = 'All';
-        filterCity.value = '';
-        filterLocation.value = '';
-        renderTips();
-    });
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', renderTips);
+    }
+
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', () => {
+            if (filterCategory) filterCategory.value = 'All';
+            if (filterCountry) filterCountry.value = 'All';
+            if (filterCity) filterCity.value = '';
+            if (filterLocation) filterLocation.value = '';
+            renderTips();
+        });
+    }
 
     // Initial set up for real-time listening
     console.log("Initializing: Page loaded, setting up real-time sync...");
