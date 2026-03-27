@@ -47,14 +47,14 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("SUBMIT CLICKED - Starting saveTip function");
 
         // Get values from form
-        const cityInput = document.getElementById('city').value.trim();
-        const countryInput = document.getElementById('country').value;
-        const locationInput = document.getElementById('location').value.trim();
-        const categoryInput = document.getElementById('category').value;
-        const contentInput = document.getElementById('tipContent').value.trim();
-        const authorInput = document.getElementById('authorName').value.trim();
-        const emailInput = document.getElementById('authorEmail').value.trim();
-        const proofInput = document.getElementById('proofOfVisit').value.trim();
+        const cityInput = document.getElementById('city')?.value.trim();
+        const countryInput = document.getElementById('country')?.value;
+        const locationInput = document.getElementById('location')?.value.trim();
+        const categoryInput = document.getElementById('category')?.value;
+        const contentInput = document.getElementById('tipContent')?.value.trim();
+        const authorInput = document.getElementById('authorName')?.value.trim();
+        const emailInput = document.getElementById('authorEmail')?.value.trim();
+        const proofInput = document.getElementById('proofOfVisit')?.value.trim();
 
         console.log("Form Data Captured:", {
             city: cityInput,
@@ -252,7 +252,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- 5. EVENT LISTENERS ---
 
     // When form is submitted
-    tipForm.addEventListener('submit', saveTip);
+    if (tipForm) {
+        tipForm.addEventListener('submit', saveTip);
+    } else {
+        console.error("Form not found!");
+    }
 
     // When filter inputs change
     filterCategory.addEventListener('change', renderTips);
